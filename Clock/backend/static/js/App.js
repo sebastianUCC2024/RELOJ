@@ -26,15 +26,27 @@ const timezones = [
 
 let timeOffsetHours = 0
 let updateInterval = null
+let visibleTimezones = []
 
 document.addEventListener("DOMContentLoaded", () => {
   initializeTheme()
+  loadCustomTimezones()
+  loadVisibleTimezones()
   initializeClocks()
   initializeControls()
   initializeCustomization()
+  initializeTimezoneModal()
+  initializeManageTimezonesModal()
   updateAllClocks()
   updateInterval = setInterval(updateAllClocks, 1000)
 })
+
+function loadCustomTimezones() {
+  const customTimezones = JSON.parse(localStorage.getItem("customTimezones") || "[]")
+  customTimezones.forEach((tz) => {
+    timezones.push(tz)
+  })
+}
 
 function initializeTheme() {
   const savedTheme = localStorage.getItem("clockTheme") || "midnight"
@@ -45,9 +57,11 @@ function initializeTheme() {
   themeButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       const theme = btn.getAttribute("data-theme")
-      document.body.setAttribute("data-theme", theme)
-      localStorage.setItem("clockTheme", theme)
-      updateActiveThemeButton(theme)
+      if (theme) {
+        document.body.setAttribute("data-theme", theme)
+        localStorage.setItem("clockTheme", theme)
+        updateActiveThemeButton(theme)
+      }
     })
   })
 }
@@ -111,10 +125,13 @@ function updateOffsetDisplay() {
 
 function initializeClocks() {
   const clocksGrid = document.getElementById("clocksGrid")
+  clocksGrid.innerHTML = ""
 
   timezones.forEach((tz) => {
-    const clockCard = createClockCard(tz)
-    clocksGrid.appendChild(clockCard)
+    if (isTimezoneVisible(tz.id)) {
+      const clockCard = createClockCard(tz)
+      clocksGrid.appendChild(clockCard)
+    }
   })
 }
 
@@ -123,6 +140,9 @@ function createClockCard(tz) {
   card.className = "clock-card"
   card.style.setProperty("--clock-color", tz.color)
   card.id = `clock-${tz.id}`
+
+  const rgb = hexToRgb(tz.color)
+  card.style.setProperty("--clock-color-rgb", `${rgb.r}, ${rgb.g}, ${rgb.b}`)
 
   card.innerHTML = `
     <div class="clock-header">
@@ -160,6 +180,13 @@ function createClockCard(tz) {
       <span class="time-period" data-time="period">AM</span>
     </div>
   `
+
+  card.addEventListener("click", () => {
+    card.classList.add("pulse")
+    setTimeout(() => {
+      card.classList.remove("pulse")
+    }, 600)
+  })
 
   return card
 }
@@ -240,7 +267,6 @@ function initializeCustomization() {
   const resetBtn = document.getElementById("resetColorsBtn")
   const saveBtn = document.getElementById("saveCustomThemeBtn")
 
-  // Open customization panel
   if (customizeBtn) {
     customizeBtn.addEventListener("click", () => {
       panel.classList.add("active")
@@ -248,21 +274,18 @@ function initializeCustomization() {
     })
   }
 
-  // Close customization panel
   if (closeBtn) {
     closeBtn.addEventListener("click", () => {
       panel.classList.remove("active")
     })
   }
 
-  // Close on backdrop click
   panel.addEventListener("click", (e) => {
     if (e.target === panel) {
       panel.classList.remove("active")
     }
   })
 
-  // Color input listeners for real-time preview
   const colorInputs = [
     "bgPrimary",
     "bgSecondary",
@@ -287,22 +310,205 @@ function initializeCustomization() {
     }
   })
 
-  // Reset colors
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
       resetToDefaultColors()
     })
   }
 
-  // Save custom theme
   if (saveBtn) {
     saveBtn.addEventListener("click", () => {
       saveCustomTheme()
     })
   }
 
-  // Load saved custom themes
   loadSavedThemes()
+}
+
+function initializeTimezoneModal() {
+  const addTimezoneBtn = document.getElementById("addTimezoneBtn")
+  const modal = document.getElementById("timezoneModal")
+  const closeBtn = document.getElementById("closeTimezoneModal")
+  const saveBtn = document.getElementById("saveTimezoneBtn")
+
+  if (addTimezoneBtn) {
+    addTimezoneBtn.addEventListener("click", () => {
+      modal.classList.add("active")
+    })
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      modal.classList.remove("active")
+    })
+  }
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      modal.classList.remove("active")
+    }
+  })
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", () => {
+      saveCustomTimezone()
+    })
+  }
+}
+
+function loadVisibleTimezones() {
+  const saved = localStorage.getItem("visibleTimezones")
+  if (saved) {
+    visibleTimezones = JSON.parse(saved)
+  } else {
+    // By default, all timezones are visible
+    visibleTimezones = timezones.map((tz) => tz.id)
+  }
+}
+
+function saveVisibleTimezones() {
+  localStorage.setItem("visibleTimezones", JSON.stringify(visibleTimezones))
+}
+
+function isTimezoneVisible(timezoneId) {
+  return visibleTimezones.includes(timezoneId)
+}
+
+function saveCustomTimezone() {
+  const cityName = document.getElementById("cityName").value.trim()
+  const countryName = document.getElementById("countryName").value.trim()
+  const timezone = document.getElementById("timezoneSelect").value
+  const flagEmoji = document.getElementById("flagEmoji").value.trim() || "🌍"
+  const clockColor = document.getElementById("clockColor").value
+
+  if (!cityName || !countryName || !timezone) {
+    alert("Por favor completa todos los campos requeridos")
+    return
+  }
+
+  const newTimezone = {
+    id: `custom-${Date.now()}`,
+    timezone: timezone,
+    flag: flagEmoji,
+    city: cityName,
+    country: countryName,
+    color: clockColor,
+  }
+
+  timezones.push(newTimezone)
+
+  visibleTimezones.push(newTimezone.id)
+  saveVisibleTimezones()
+
+  // Save to localStorage
+  const customTimezones = JSON.parse(localStorage.getItem("customTimezones") || "[]")
+  customTimezones.push(newTimezone)
+  localStorage.setItem("customTimezones", JSON.stringify(customTimezones))
+
+  // Reinitialize clocks
+  initializeClocks()
+
+  // Clear form
+  document.getElementById("cityName").value = ""
+  document.getElementById("countryName").value = ""
+  document.getElementById("timezoneSelect").value = ""
+  document.getElementById("flagEmoji").value = ""
+  document.getElementById("clockColor").value = "#ff6b9d"
+
+  // Close modal
+  document.getElementById("timezoneModal").classList.remove("active")
+
+  alert(`Zona horaria "${cityName}" agregada exitosamente!`)
+}
+
+function initializeManageTimezonesModal() {
+  const manageBtn = document.getElementById("manageTimezonesBtn")
+  const modal = document.getElementById("manageTimezonesModal")
+  const closeBtn = document.getElementById("closeManageTimezonesModal")
+  const selectAllBtn = document.getElementById("selectAllBtn")
+  const deselectAllBtn = document.getElementById("deselectAllBtn")
+
+  if (manageBtn) {
+    manageBtn.addEventListener("click", () => {
+      modal.classList.add("active")
+      renderTimezoneCheckboxes()
+    })
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      modal.classList.remove("active")
+    })
+  }
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      modal.classList.remove("active")
+    }
+  })
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", () => {
+      visibleTimezones = timezones.map((tz) => tz.id)
+      saveVisibleTimezones()
+      renderTimezoneCheckboxes()
+      initializeClocks()
+    })
+  }
+
+  if (deselectAllBtn) {
+    deselectAllBtn.addEventListener("click", () => {
+      visibleTimezones = []
+      saveVisibleTimezones()
+      renderTimezoneCheckboxes()
+      initializeClocks()
+    })
+  }
+}
+
+function renderTimezoneCheckboxes() {
+  const container = document.getElementById("timezoneCheckboxes")
+  if (!container) return
+
+  container.innerHTML = ""
+
+  timezones.forEach((tz) => {
+    const item = document.createElement("div")
+    item.className = "timezone-checkbox-item"
+
+    const checkbox = document.createElement("input")
+    checkbox.type = "checkbox"
+    checkbox.id = `tz-checkbox-${tz.id}`
+    checkbox.checked = isTimezoneVisible(tz.id)
+
+    checkbox.addEventListener("change", (e) => {
+      if (e.target.checked) {
+        if (!visibleTimezones.includes(tz.id)) {
+          visibleTimezones.push(tz.id)
+        }
+      } else {
+        visibleTimezones = visibleTimezones.filter((id) => id !== tz.id)
+      }
+      saveVisibleTimezones()
+      initializeClocks()
+    })
+
+    const label = document.createElement("label")
+    label.className = "timezone-checkbox-label"
+    label.htmlFor = `tz-checkbox-${tz.id}`
+
+    label.innerHTML = `
+      <span class="timezone-checkbox-flag">${tz.flag}</span>
+      <div class="timezone-checkbox-info">
+        <div class="timezone-checkbox-city">${tz.city}</div>
+        <div class="timezone-checkbox-country">${tz.country}</div>
+      </div>
+    `
+
+    item.appendChild(checkbox)
+    item.appendChild(label)
+    container.appendChild(item)
+  })
 }
 
 function loadCurrentColors() {
@@ -338,7 +544,6 @@ function applyCustomColors() {
   root.style.setProperty("--accent-yellow", document.getElementById("accentYellow").value)
   root.style.setProperty("--accent-orange", document.getElementById("accentOrange").value)
 
-  // Update gradient overlays
   const pink = document.getElementById("accentPink").value
   const purple = document.getElementById("accentPurple").value
   const blue = document.getElementById("accentBlue").value
@@ -347,21 +552,18 @@ function applyCustomColors() {
   root.style.setProperty("--gradient-overlay-2", hexToRgba(purple, 0.15))
   root.style.setProperty("--gradient-overlay-3", hexToRgba(blue, 0.1))
 
-  // Mark as custom theme
   document.body.setAttribute("data-theme", "custom")
 }
 
 function resetToDefaultColors() {
   const currentTheme = document.body.getAttribute("data-theme")
   if (currentTheme && currentTheme !== "custom") {
-    // Reload the current preset theme
     document.body.setAttribute("data-theme", "midnight")
     setTimeout(() => {
       document.body.setAttribute("data-theme", currentTheme)
       loadCurrentColors()
     }, 50)
   } else {
-    // Reset to midnight theme
     document.body.setAttribute("data-theme", "midnight")
     loadCurrentColors()
   }
@@ -389,12 +591,10 @@ function saveCustomTheme() {
     },
   }
 
-  // Save to localStorage
   const savedThemes = JSON.parse(localStorage.getItem("customThemes") || "[]")
   savedThemes.push(customTheme)
   localStorage.setItem("customThemes", JSON.stringify(savedThemes))
 
-  // Reload saved themes list
   loadSavedThemes()
 
   alert(`Tema "${themeName}" guardado exitosamente!`)
@@ -428,14 +628,12 @@ function loadSavedThemes() {
       </div>
     `
 
-    // Load theme on click
     themeItem.addEventListener("click", (e) => {
       if (!e.target.classList.contains("delete-theme-btn")) {
         loadCustomTheme(theme)
       }
     })
 
-    // Delete theme
     const deleteBtn = themeItem.querySelector(".delete-theme-btn")
     deleteBtn.addEventListener("click", (e) => {
       e.stopPropagation()
@@ -455,12 +653,10 @@ function loadCustomTheme(theme) {
       input.value = value
     }
 
-    // Convert camelCase to kebab-case for CSS variables
     const cssVar = key.replace(/([A-Z])/g, "-$1").toLowerCase()
     root.style.setProperty(`--${cssVar}`, value)
   })
 
-  // Update gradient overlays
   root.style.setProperty("--gradient-overlay-1", hexToRgba(theme.colors.accentPink, 0.15))
   root.style.setProperty("--gradient-overlay-2", hexToRgba(theme.colors.accentPurple, 0.15))
   root.style.setProperty("--gradient-overlay-3", hexToRgba(theme.colors.accentBlue, 0.1))
@@ -478,12 +674,9 @@ function deleteCustomTheme(index) {
   loadSavedThemes()
 }
 
-// Utility functions
 function rgbToHex(rgb) {
-  // Handle hex colors that are already in hex format
   if (rgb.startsWith("#")) return rgb
 
-  // Handle rgb/rgba format
   const match = rgb.match(/\d+/g)
   if (!match) return "#000000"
 
@@ -500,4 +693,15 @@ function hexToRgba(hex, alpha) {
   const b = Number.parseInt(hex.slice(5, 7), 16)
 
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result
+    ? {
+        r: Number.parseInt(result[1], 16),
+        g: Number.parseInt(result[2], 16),
+        b: Number.parseInt(result[3], 16),
+      }
+    : { r: 255, g: 107, b: 157 }
 }
