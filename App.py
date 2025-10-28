@@ -6,78 +6,77 @@ import locale
 app = Flask(__name__, 
             static_folder='backend/static',
             template_folder='backend/templates')
-
-# Zonas horarias disponibles con información detallada
+ 
 TIMEZONES = {
     'Colombia': {
         'timezone': 'America/Bogota',
         'gmt': 'GMT-5',
         'flag': '🇨🇴',
         'city': 'Pasto',
-        'locale': 'es_ES.UTF-8'  # Español
+            'locale': 'es_ES.UTF-8',
     },
     'Japan': {
         'timezone': 'Asia/Tokyo',
         'gmt': 'GMT+9',
         'flag': '🇯🇵',
         'city': 'Tokyo',
-        'locale': 'ja_JP.UTF-8'  # Japonés
+            'locale': 'ja_JP.UTF-8',
     },
     'Australia': {
         'timezone': 'Australia/Sydney',
         'gmt': 'GMT+11',
         'flag': '🇦🇺',
         'city': 'Sydney',
-        'locale': 'en_AU.UTF-8'  # Inglés australiano
+            'locale': 'en_AU.UTF-8',
     },
     'France': {
         'timezone': 'Europe/Paris',
         'gmt': 'GMT+1',
         'flag': '🇫🇷',
         'city': 'Paris',
-        'locale': 'fr_FR.UTF-8'  # Francés
+            'locale': 'fr_FR.UTF-8',
     },
     'USA': {
         'timezone': 'America/New_York',
         'gmt': 'GMT-5',
         'flag': '🇺🇸',
         'city': 'New York',
-        'locale': 'en_US.UTF-8'  # Inglés americano
+            'locale': 'en_US.UTF-8',
     },
     'UK': {
         'timezone': 'Europe/London',
         'gmt': 'GMT+0',
         'flag': '🇬🇧',
         'city': 'London',
-        'locale': 'en_GB.UTF-8'  # Inglés británico
+            'locale': 'en_GB.UTF-8',
     },
     'Brazil': {
         'timezone': 'America/Sao_Paulo',
         'gmt': 'GMT-3',
         'flag': '🇧🇷',
         'city': 'São Paulo',
-        'locale': 'pt_BR.UTF-8'  # Portugués brasileño
+            'locale': 'pt_BR.UTF-8',
     },
     'India': {
         'timezone': 'Asia/Kolkata',
         'gmt': 'GMT+5:30',
         'flag': '🇮🇳',
         'city': 'Mumbai',
-        'locale': 'hi_IN.UTF-8'  # Hindi
+            'locale': 'hi_IN.UTF-8',
     },
     'China': {
         'timezone': 'Asia/Shanghai',
         'gmt': 'GMT+8',
         'flag': '🇨🇳',
         'city': 'Shanghai',
-        'locale': 'zh_CN.UTF-8'  # Mandarín
+            'locale': 'zh_CN.UTF-8',
     },
     'Dubai': {
         'timezone': 'Asia/Dubai',
         'gmt': 'GMT+4',
         'flag': '🇦🇪',
         'city': 'Dubai',
-        'locale': 'ar_AE.UTF-8'  # Árabe
+            'locale': 'ar_AE.UTF-8',
     }
 }
 
@@ -115,9 +114,7 @@ LOCALE_FORMATS = {
 }
 
 def format_date_localized(dt, locale_code):
-    """
-    Formatea la fecha en el idioma correspondiente al país
-    """
+
     try:
         locale_format = LOCALE_FORMATS.get(locale_code)
         
@@ -125,17 +122,16 @@ def format_date_localized(dt, locale_code):
             day_name = locale_format['days'][dt.weekday()]
             month_name = locale_format['months'][dt.month - 1]
             
-            # Formato según el idioma
-            if locale_code == 'zh_CN.UTF-8':  # Chino
+            if locale_code == 'zh_CN.UTF-8':
                 return f"{dt.year}年{dt.month}月{dt.day}日 {day_name}"
-            elif locale_code == 'ja_JP.UTF-8':  # Japonés
+            elif locale_code == 'ja_JP.UTF-8':
                 return f"{dt.year}年{dt.month}月{dt.day}日 {day_name}"
-            elif locale_code == 'en_US.UTF-8':  # Inglés americano
+            elif locale_code == 'en_US.UTF-8':
                 return f"{day_name}, {month_name} {dt.day}, {dt.year}"
-            else:  # Español, francés, portugués
+            else:
                 return f"{day_name}, {dt.day} de {month_name} de {dt.year}"
         else:
-            # Fallback a formato por defecto
+            
             return dt.strftime('%A, %d de %B de %Y')
     except Exception as e:
         print(f"Error formateando fecha: {e}")
@@ -159,10 +155,8 @@ def get_time_info(country='Colombia'):
             hour_12 = 12
         am_pm = 'A.M.' if hour < 12 else 'P.M.'
         
-        # Determinar si es día o noche (día: 6am-6pm, noche: 6pm-6am)
         is_day = 6 <= hour < 18
         
-        # Seleccionar frase según el momento del día
         if is_day:
             phrases = [
                 "¡Aprovecha el día, tus metas te esperan!",
@@ -180,18 +174,17 @@ def get_time_info(country='Colombia'):
                 "Recarga energías para brillar mañana"
             ]
         
-        # Seleccionar frase basada en el minuto actual para variedad
         phrase = phrases[minute % len(phrases)]
-        
+
         formatted_date = format_date_localized(current_time, timezone_info['locale'])
-        
+
         return {
-            'hour': hour_12,  # Return 12-hour format
+            'hour': hour_12,
             'minute': minute,
             'second': second,
-            'am_pm': am_pm,  # Added AM/PM indicator
-            'formatted_time': f"{hour_12:02d}:{minute:02d}:{second:02d} {am_pm}",  # 12-hour format
-            'formatted_date': formatted_date,  # Localized date
+            'am_pm': am_pm,
+            'formatted_time': f"{hour_12:02d}:{minute:02d}:{second:02d} {am_pm}",
+            'formatted_date': formatted_date,
             'is_day': is_day,
             'period': 'day' if is_day else 'night',
             'phrase': phrase,
@@ -202,7 +195,7 @@ def get_time_info(country='Colombia'):
         }
     except Exception as e:
         print(f"Error obteniendo hora: {e}")
-        # Fallback a hora local
+        
         now = datetime.now()
         hour_12 = now.hour % 12
         if hour_12 == 0:
@@ -249,6 +242,6 @@ def get_timezones():
     return jsonify(TIMEZONES)
 
 if __name__ == '__main__':
-    print("🕒 Clock Exotic iniciando...")
-    print("🌍 Zonas horarias disponibles:", list(TIMEZONES.keys()))
+    print(" Clock Exotic iniciando...")
+    print("Zonas horarias disponibles:", list(TIMEZONES.keys()))
     app.run(debug=True, host='0.0.0.0', port=5000)
